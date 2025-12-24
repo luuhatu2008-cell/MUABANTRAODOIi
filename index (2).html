@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>THE VOID - ENCRYPTED TERMINAL v12</title>
+    <style>
+        :root { --red: #ff0000; --green: #00ff41; --bg: #050505; --gray: #888; }
+        body { background: #000; color: #ccc; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; height: 100vh; }
+
+        /* GMAIL LOGIN */
+        #login-overlay { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .login-box { width: 360px; padding: 40px; border: 1px solid #dadce0; border-radius: 8px; text-align: center; font-family: sans-serif; }
+        .google-logo { font-size: 24px; font-weight: bold; margin-bottom: 25px; }
+        .login-btn { background: #1a73e8; color: white; border: none; padding: 10px 24px; border-radius: 4px; cursor: pointer; float: right; font-weight: bold; }
+        .input-group input { width: 100%; padding: 13px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; }
+
+        /* MAIN UI */
+        #main-ui { display: none; grid-template-columns: 260px 1fr 360px; height: 100vh; }
+        .panel { border: 1px solid #222; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: #111; padding: 12px; color: var(--red); font-weight: bold; font-size: 11px; border-bottom: 1px solid #333; }
+        .target-box { background: #111; border: 1px solid #333; padding: 10px; margin: 15px; color: var(--green); font-size: 11px; }
+
+        /* MARKET */
+        #market { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .item-card { background: #111; border: 1px solid #222; padding: 10px; text-align: center; }
+        .img-blur { width: 100%; height: 60px; background: #222; filter: blur(15px); opacity: 0.3; }
+        .buy-btn { background: transparent; color: var(--red); border: 1px solid var(--red); cursor: pointer; width: 100%; margin-top: 5px; font-size: 10px; }
+
+        /* CHAT */
+        #chat-log { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 8px 12px; border-radius: 6px; font-size: 14px; max-width: 85%; line-height: 1.4; word-wrap: break-word; }
+        .admin { color: var(--green); align-self: flex-start; background: rgba(0,255,65,0.05); border-left: 3px solid var(--green); }
+        .user { color: #fff; align-self: flex-end; background: #222; }
+        #chat-input-area { background: #000; border-top: 1px solid #333; padding: 15px; }
+        #user-input { background: transparent; border: none; color: #fff; outline: none; width: 100%; font-family: inherit; }
+        .typing { font-size: 10px; color: #444; display: none; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="login-overlay">
+    <div class="login-box">
+        <div class="google-logo"><span style="color:#4285f4">G</span><span style="color:#ea4335">o</span><span style="color:#fbbc05">o</span><span style="color:#4285f4">g</span><span style="color:#34a853">l</span><span style="color:#ea4335">e</span></div>
+        <div style="font-size: 22px; margin-bottom: 20px;">Đăng nhập</div>
+        <div class="input-group"><input type="text" id="fake-email" placeholder="Email hoặc số điện thoại"></div>
+        <div class="input-group"><input type="password" placeholder="Nhập mật khẩu"></div>
+        <button class="login-btn" onclick="startApp()">Tiếp theo</button>
+    </div>
+</div>
+
+<div id="main-ui">
+    <div class="panel">
+        <div class="header">NODE_INFO</div>
+        <div class="target-box">
+            <strong>[TARGET_LOCKED]</strong><br>
+            IP: 103.22.14.99<br>
+            ADDR: <span style="color:yellow">SỐ NHÀ 123, ĐƯỜNG ABC... (SỬA Ở ĐÂY)</span>
+        </div>
+        <div style="padding:15px; font-size:10px; color:red;">● WEBCAM_STREAMING...</div>
+    </div>
+
+    <div class="panel">
+        <div class="header">BLACK_MARKET</div>
+        <div id="market">
+            <div class="item-card"><div class="img-blur"></div><span>Súng Glock</span><button class="buy-btn" onclick="buy('Súng')">MUA</button></div>
+            <div class="item-card"><div class="img-blur"></div><span>Passport</span><button class="buy-btn" onclick="buy('Passport')">MUA</button></div>
+            <div class="item-card"><div class="img-blur"></div><span>Dữ liệu Bank</span><button class="buy-btn" onclick="buy('Data')">MUA</button></div>
+            <div class="item-card"><div class="img-blur"></div><span>Thịt tươi</span><button class="buy-btn" onclick="buy('Thịt')">MUA</button></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="header">SECURE_CHAT (BOSS)</div>
+        <div id="chat-log">
+            <div class="msg admin"><strong>BOSS:</strong> Vào rồi à? Có tiền thì nói chuyện, không thì lướt.</div>
+        </div>
+        <div id="chat-input-area">
+            <div id="typing" class="typing">Boss đang gõ...</div>
+            <input type="text" id="user-input" placeholder="Nhắn tin..." autocomplete="off">
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+    // --- CẤU HÌNH FIREBASE (DÁN LINK CỦA CẬU VÀO ĐÂY) ---
+    const firebaseConfig = { databaseURL: "https://trollfriend-852e1-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref("troll_chat");
+
+    const chatInput = document.getElementById('user-input');
+    const chatLog = document.getElementById('chat-log');
+    const typing = document.getElementById('typing');
+    let isAdmin = false;
+
+    function startApp() {
+        if(!document.getElementById('fake-email').value.includes('@')) return alert("Nhập email!");
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('main-ui').style.display = 'grid';
+    }
+
+    // LẮNG NGHE ĐIỀU KHIỂN TỪ XA
+    db.on("child_added", (snapshot) => {
+        const data = snapshot.val();
+        if (data.sender === "REMOTE_BOSS") {
+            addChat("BOSS", data.text);
+            playTing();
+        }
+    });
+
+    function playTing() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    function addChat(sender, text) {
+        const div = document.createElement('div');
+        div.className = `msg ${sender === 'BOSS' ? 'admin' : 'user'}`;
+        div.innerHTML = `<strong>${sender}:</strong> ${text}`;
+        chatLog.appendChild(div);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    // BOSS TỰ ĐỘNG (Dùng khi cậu chưa rảnh tay điều khiển)
+    function autoBoss(input) {
+        input = input.toLowerCase();
+        if(input.includes("nhà") || input.includes("đâu")) return "Nhìn TARGET_DATA bên trái đi, tao biết mày đang ở [ĐỊA CHỈ NHÀ BẠN CẬU] rồi.";
+        if(input.includes("tuổi")) return "Hỏi tuổi định kết bạn à? Có tiền thì mua đồ đi.";
+        if(input.includes("mua")) return "Chốt đơn thì chuyển Bitcoin. Tao cho người qua nhà mày trong 15 phút.";
+        return "Nói cái gì quan trọng đi, tao không rảnh tâm sự.";
+    }
+
+    chatInput.addEventListener('keypress', (e) => {
+        if(e.key === 'Enter' && chatInput.value !== "") {
+            const val = chatInput.value;
+
+            // MẬT MÃ ĐỂ CẬU CHIẾM QUYỀN ĐIỀU KHIỂN
+            if(val === "control_x") {
+                isAdmin = !isAdmin;
+                chatInput.value = "";
+                alert(isAdmin ? "BẬT ĐIỀU KHIỂN TỪ XA!" : "TẮT ĐIỀU KHIỂN.");
+                return;
+            }
+
+            if (isAdmin) {
+                db.push({ sender: "REMOTE_BOSS", text: val }); // Gửi lên Firebase
+                chatInput.value = "";
+            } else {
+                addChat('YOU', val);
+                chatInput.value = "";
+                typing.style.display = 'block';
+                setTimeout(() => {
+                    typing.style.display = 'none';
+                    addChat('BOSS', autoBoss(val));
+                }, 1500);
+            }
+        }
+    });
+
+    function buy(item) {
+        addChat('YOU', `Tôi muốn mua ${item}`);
+        setTimeout(() => addChat('BOSS', `Đợi tao check kho xem món ${item} này còn không...`), 1000);
+    }
+</script>
+</body>
+</html>
